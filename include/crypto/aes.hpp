@@ -3,24 +3,25 @@
 
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <stdexcept>
 #define uc unsigned char
-using namespace std;
 
-string text2hex (string s);
-string hex2text (string s);
+std::string text2hex (std::string s);
+std::string hex2text (std::string s);
 
-vector<uc> add_padding(vector<uc> s);
-vector<uc> remove_padding(vector<uc> s);
+std::vector<uc> add_padding(std::vector<uc> s);
+std::vector<uc> remove_padding(std::vector<uc> s);
 
 class AES {
     public:
-        AES (string key);
-        AES (vector<uc> key_bytes);
+        AES (std::string key);
+        AES (std::vector<uc> key_bytes);
 
-        vector<uc> encrypt_block (vector<uc> plaintext);
-        vector<uc> decrypt_block (vector<uc> ciphertext);
-        vector<uc> encrypt_cbc (vector<uc> plaintext, vector<uc> iv);
-        vector<uc> decrypt_cbc (vector<uc> ciphertext, vector<uc> iv);
+        std::vector<uc> encrypt_block (std::vector<uc> plaintext);
+        std::vector<uc> decrypt_block (std::vector<uc> ciphertext);
+        std::vector<uc> encrypt_cbc (std::vector<uc> plaintext, std::vector<uc> iv);
+        std::vector<uc> decrypt_cbc (std::vector<uc> ciphertext, std::vector<uc> iv);
 
         int get_rounds(){
             return n_rounds;
@@ -33,12 +34,12 @@ class AES {
         int key_size;
         int n_rounds;
 
-        vector<vector<uc>> round_keys;
+        std::vector<std::vector<uc>> round_keys;
 
-        void expand_key (vector<uc> master_key);
+        void expand_key (std::vector<uc> master_key);
 };
 
-string encrypt(string plaintext, string key, string iv="");
-string decrypt(string ciphertext, string key, string iv="");
+std::string encrypt(std::string plaintext, std::string key, std::string iv="");
+std::string decrypt(std::string ciphertext, std::string key, std::string iv="");
 
 #endif
