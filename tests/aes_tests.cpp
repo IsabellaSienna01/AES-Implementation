@@ -1,4 +1,4 @@
-#include "../include/crypto/aes.hpp"
+#include "crypto/aes.hpp"
 #include <iostream>
 #include <cassert>
 #include <cctype>
