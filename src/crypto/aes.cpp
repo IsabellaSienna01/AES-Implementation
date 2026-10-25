@@ -1,11 +1,11 @@
-#include "aes.hpp"
+#include "crypto/aes.hpp"
 #include <algorithm>
+#include <cstddef>
 #include <stdexcept>
 #include <string>
 #include <vector>
 #include <random>
 #define uc unsigned char
-using namespace std;
 
 uc s_box[256] = {
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -52,9 +52,9 @@ uc round_constant[32] = {
     0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39,
 };
 
-string text2hex (string s){
-    string hex = "0123456789abcdef";
-    string res = "";
+std::string text2hex (std::string s){
+    std::string hex = "0123456789abcdef";
+    std::string res = "";
 
     for (uc c : s){
         res += hex[c/16];
@@ -63,20 +63,20 @@ string text2hex (string s){
     return res;
 }
 
-string hex2text (string s){
-    string res = "";
+std::string hex2text (std::string s){
+    std::string res = "";
 
-    for (int i = 0; i<s.size(); i+=2){
-        string byte_str = s.substr(i, 2);
-        char c = char(stoi(byte_str, nullptr, 16));
+    for (std::size_t i = 0; i < s.size(); i += 2){
+        std::string byte_str = s.substr(i, 2);
+        char c = char(std::stoi(byte_str, nullptr, 16));
 
         res += c;
     }
     return res;
 }
-vector<unsigned char> remove_padding(vector<unsigned char> s);
+std::vector<unsigned char> remove_padding(std::vector<unsigned char> s);
 
-vector<uc> add_padding(vector<uc> s){
+std::vector<uc> add_padding(std::vector<uc> s){
     int padding = 16 - (s.size() % 16);
     for (int i = 0; i<padding; i++){
         s.push_back((uc) padding);
@@ -84,25 +84,25 @@ vector<uc> add_padding(vector<uc> s){
     return s;
 }
 
-vector<uc> remove_padding(vector<uc> s){
+std::vector<uc> remove_padding(std::vector<uc> s){
     if (s.empty()){
         return s;
     }
     int padding = (int) s.back();
     if (padding < 1 || padding > 16){
-        throw invalid_argument("Invalid padding");
+        throw std::invalid_argument("Invalid padding");
     }
     for (int i = 0; i<padding; i++){
         if (s[s.size() - 1 - i] != (uc) padding){
-            throw invalid_argument("Invalid padding");
+            throw std::invalid_argument("Invalid padding");
         }
     }
     s.resize(s.size() - padding);
     return s;
 }
 
-vector<vector<uc>> bytes2matrix (vector<uc> text){
-    vector<vector<uc>> mat(4, vector<uc>(4));
+std::vector<std::vector<uc>> bytes2matrix (std::vector<uc> text){
+    std::vector<std::vector<uc>> mat(4, std::vector<uc>(4));
     for (int i = 0; i<4; i++){
         for (int j = 0; j<4; j++){
             mat[i][j] = text[i*4+j];
@@ -111,8 +111,8 @@ vector<vector<uc>> bytes2matrix (vector<uc> text){
     return mat;
 }
 
-vector<uc> matrix2bytes (vector<vector<uc>> mat){
-    vector<uc> text;
+std::vector<uc> matrix2bytes (std::vector<std::vector<uc>> mat){
+    std::vector<uc> text;
     for (int i = 0; i<4; i++){
         for (int j = 0; j<4; j++){
             text.push_back(mat[i][j]);
@@ -121,7 +121,7 @@ vector<uc> matrix2bytes (vector<vector<uc>> mat){
     return text;
 }
 
-void add_round_key (vector<vector<uc>> & s, vector<uc> & k){
+void add_round_key (std::vector<std::vector<uc>> & s, std::vector<uc> & k){
     for (int i = 0; i<4; i++){
         for (int j = 0; j<4; j++){
             s[i][j] ^= k[i * 4 + j];
@@ -129,7 +129,7 @@ void add_round_key (vector<vector<uc>> & s, vector<uc> & k){
     }
 }
 
-void sub_bytes (vector<vector<uc>> & s, bool inverse = false){
+void sub_bytes (std::vector<std::vector<uc>> & s, bool inverse = false){
     for (int i = 0; i<4; i++){
         for (int j = 0; j<4; j++){
             if (!inverse){
@@ -142,7 +142,7 @@ void sub_bytes (vector<vector<uc>> & s, bool inverse = false){
     }
 }
 
-void shift_rows (vector<vector<uc>> &s, bool inverse = false){
+void shift_rows (std::vector<std::vector<uc>> &s, bool inverse = false){
     uc temp;
     if (!inverse){ //geser kiri
         //baris 1
@@ -153,8 +153,8 @@ void shift_rows (vector<vector<uc>> &s, bool inverse = false){
         s[3][1] = temp;
 
         //baris 2
-        swap(s[0][2], s[2][2]); 
-        swap(s[1][2], s[3][2]);
+        std::swap(s[0][2], s[2][2]); 
+        std::swap(s[1][2], s[3][2]);
 
         //baris 3
         temp = s[3][3]; 
@@ -172,8 +172,8 @@ void shift_rows (vector<vector<uc>> &s, bool inverse = false){
         s[0][1] = temp;
 
         //baris 2
-        swap(s[0][2], s[2][2]); 
-        swap(s[1][2], s[3][2]);
+        std::swap(s[0][2], s[2][2]); 
+        std::swap(s[1][2], s[3][2]);
         
         //baris 3
         temp = s[0][3]; 
@@ -191,7 +191,7 @@ uc xtime(uc a) {
     return (a << 1) & 255;
 }
 
-void mix_single_column (vector<uc> & a){
+void mix_single_column (std::vector<uc> & a){
     uc all = a[0] ^ a[1] ^ a[2] ^ a[3];
     uc a0 = a[0];
     a[0] ^= all ^ xtime(a[0] ^ a[1]);
@@ -200,7 +200,7 @@ void mix_single_column (vector<uc> & a){
     a[3] ^= all ^ xtime(a[3] ^ a0);
 }
 
-void mix_columns(vector<vector<uc>> & mat, bool inverse=false){
+void mix_columns(std::vector<std::vector<uc>> & mat, bool inverse=false){
     if (inverse) {
         for (int i = 0; i < 4; i++) {
             uc u = xtime(xtime(mat[i][0] ^ mat[i][2]));
@@ -217,35 +217,35 @@ void mix_columns(vector<vector<uc>> & mat, bool inverse=false){
     }
 }
 
-vector<uc> xor_bytes(vector<uc> a, vector<uc> b){
-    vector<uc> res;
-    for (int i = 0; i<a.size(); i++){
+std::vector<uc> xor_bytes(std::vector<uc> a, std::vector<uc> b){
+    std::vector<uc> res;
+    for (std::size_t i = 0; i < a.size(); i++){
         res.push_back(a[i] ^ b[i]);
     }
     return res;
 }
 
-void AES::expand_key (vector<uc> master_key){
+void AES::expand_key (std::vector<uc> master_key){
     int sz = master_key.size();
 
     if (sz != 16 && sz != 24 && sz != 32){
-        throw invalid_argument("AES key must be 16, 24, or 32 bytes");
+        throw std::invalid_argument("AES key must be 16, 24, or 32 bytes");
     }
 
     int nk = sz / 4; // aes-128: 4, aes-192: 6, aes-256: 8
     n_rounds = nk + 6;
     int total = (n_rounds + 1) * 4;
     
-    vector<vector<uc>> key_cols;
+    std::vector<std::vector<uc>> key_cols;
 
     for (int i = 0; i<sz; i+=4){
         key_cols.push_back({master_key[i], master_key[i+1], master_key[i+2], master_key[i+3]});
     }
     for (int i = nk; i<total; i++){
-        vector<uc> word = key_cols[i-1]; // w3
+        std::vector<uc> word = key_cols[i-1]; // w3
 
         if (i % nk == 0){
-            rotate(word.begin(), word.begin() + 1, word.end());
+            std::rotate(word.begin(), word.begin() + 1, word.end());
 
             for (int j = 0; j<4; j++){
                 word[j] = s_box[word[j]];
@@ -262,7 +262,7 @@ void AES::expand_key (vector<uc> master_key){
 
     round_keys.clear();
     for (int r = 0; r<=n_rounds; r++){
-        vector<uc> round_key;
+        std::vector<uc> round_key;
 
         for (int i = 0; i<4; i++){
             for (int j = 0; j<4; j++){
@@ -273,21 +273,21 @@ void AES::expand_key (vector<uc> master_key){
     }
 }
 
-AES::AES(string key) {
+AES::AES(std::string key) {
     this->key_size = key.size();
-    vector<uc> key_bytes(key.begin(), key.end());
+    std::vector<uc> key_bytes(key.begin(), key.end());
     expand_key(key_bytes);
 }
-AES::AES(vector<uc> key_bytes) {
+AES::AES(std::vector<uc> key_bytes) {
     this->key_size = key_bytes.size();
     expand_key(key_bytes);
 }
 
-vector<uc> AES::encrypt_block (vector<uc> plaintext){
+std::vector<uc> AES::encrypt_block (std::vector<uc> plaintext){
     if (plaintext.size() != 16){
-        throw invalid_argument("Plaintext block must be exactly 16 bytes.");
+        throw std::invalid_argument("Plaintext block must be exactly 16 bytes.");
     }
-    vector<vector<uc>> state = bytes2matrix(plaintext);
+    std::vector<std::vector<uc>> state = bytes2matrix(plaintext);
 
     add_round_key(state, round_keys[0]);
 
@@ -305,11 +305,11 @@ vector<uc> AES::encrypt_block (vector<uc> plaintext){
     return matrix2bytes(state);
 }
 
-vector<uc> AES::decrypt_block (vector<uc> ciphertext){
+std::vector<uc> AES::decrypt_block (std::vector<uc> ciphertext){
     if (ciphertext.size() != 16){
-        throw invalid_argument("Ciphertext block must be exactly 16 bytes.");
+        throw std::invalid_argument("Ciphertext block must be exactly 16 bytes.");
     }
-    vector<vector<uc>> state = bytes2matrix(ciphertext);
+    std::vector<std::vector<uc>> state = bytes2matrix(ciphertext);
 
     add_round_key(state, round_keys[n_rounds]);
     shift_rows(state, true);
@@ -326,18 +326,18 @@ vector<uc> AES::decrypt_block (vector<uc> ciphertext){
     return matrix2bytes(state);
 }
 
-vector<uc> AES::encrypt_cbc (vector<uc> plaintext, vector<uc> iv){
+std::vector<uc> AES::encrypt_cbc (std::vector<uc> plaintext, std::vector<uc> iv){
     if (iv.size() != 16){
-        throw invalid_argument("IV must be exactly 16 bytes");
+        throw std::invalid_argument("IV must be exactly 16 bytes");
     }
     plaintext = add_padding(plaintext);
 
-    vector<uc> ciphertext;
-    vector<uc> prev = iv;
+    std::vector<uc> ciphertext;
+    std::vector<uc> prev = iv;
 
     int sz = plaintext.size();
     for (int i=0; i<sz; i+=16){
-        vector<uc> block(plaintext.begin() + i, plaintext.begin() + i + 16);
+        std::vector<uc> block(plaintext.begin() + i, plaintext.begin() + i + 16);
         block = xor_bytes(block, prev);
         block = encrypt_block(block);
 
@@ -347,21 +347,21 @@ vector<uc> AES::encrypt_cbc (vector<uc> plaintext, vector<uc> iv){
     return ciphertext;
 }
 
-vector<uc> AES::decrypt_cbc (vector<uc> ciphertext, vector<uc> iv){
+std::vector<uc> AES::decrypt_cbc (std::vector<uc> ciphertext, std::vector<uc> iv){
     if (iv.size() != 16){
-        throw invalid_argument("IV must be exactly 16 bytes");
+        throw std::invalid_argument("IV must be exactly 16 bytes");
     }
     if (ciphertext.empty() || ciphertext.size() % 16 != 0){
-        throw invalid_argument("Ciphertext must be a non-empty multiple of 16 bytes");
+        throw std::invalid_argument("Ciphertext must be a non-empty multiple of 16 bytes");
     }
 
-    vector<uc> decrypted;
-    vector<uc> prev = iv;
+    std::vector<uc> decrypted;
+    std::vector<uc> prev = iv;
 
     int sz = ciphertext.size();
     for (int i = 0; i<sz; i+=16){
-        vector<uc> block(ciphertext.begin() + i, ciphertext.begin() + i + 16);
-        vector<uc> pt = decrypt_block(block);
+        std::vector<uc> block(ciphertext.begin() + i, ciphertext.begin() + i + 16);
+        std::vector<uc> pt = decrypt_block(block);
         pt = xor_bytes(pt, prev);
 
         decrypted.insert(decrypted.end(), pt.begin(), pt.end());
@@ -370,54 +370,54 @@ vector<uc> AES::decrypt_cbc (vector<uc> ciphertext, vector<uc> iv){
     return remove_padding(decrypted);
 }
 
-string encrypt(string plaintext, string key, string iv){
-    vector<uc> iv_bytes;
+std::string encrypt(std::string plaintext, std::string key, std::string iv){
+    std::vector<uc> iv_bytes;
     if (iv.empty()){
-        random_device rd;
+        std::random_device rd;
         for (int i = 0; i < 16; i++) {
             iv_bytes.push_back(static_cast<uc>(rd() & 0xFF));
         }
     }
     else{
         if (iv.size() != 16) {
-            throw invalid_argument("IV must be exactly 16 bytes");
+            throw std::invalid_argument("IV must be exactly 16 bytes");
         }
         iv_bytes.assign(iv.begin(), iv.end());
     }
-    vector<uc> pt_bytes(plaintext.begin(), plaintext.end());
+    std::vector<uc> pt_bytes(plaintext.begin(), plaintext.end());
     AES aes(key);
-    vector<uc> ct_bytes = aes.encrypt_cbc(pt_bytes, iv_bytes);
+    std::vector<uc> ct_bytes = aes.encrypt_cbc(pt_bytes, iv_bytes);
 
-    string text(iv_bytes.begin(), iv_bytes.end());
+    std::string text(iv_bytes.begin(), iv_bytes.end());
     text.append(ct_bytes.begin(), ct_bytes.end());
 
     return text2hex(text);
 }
 
-string decrypt(string ciphertext, string key, string iv){
+std::string decrypt(std::string ciphertext, std::string key, std::string iv){
     if (ciphertext.size() % 2 != 0) {
-        throw invalid_argument("Ciphertext hex length must be even");
+        throw std::invalid_argument("Ciphertext hex length must be even");
     }
-    string raw_bytes = hex2text(ciphertext);
-    vector<uc> iv_bytes;
-    vector<uc> ct_bytes;
+    std::string raw_bytes = hex2text(ciphertext);
+    std::vector<uc> iv_bytes;
+    std::vector<uc> ct_bytes;
 
     if (iv.empty()){
         if (raw_bytes.size() < 32){
-            throw invalid_argument("Ciphertext payload too short");
+            throw std::invalid_argument("Ciphertext payload too short");
         }
         iv_bytes.assign(raw_bytes.begin(), raw_bytes.begin() + 16);
         ct_bytes.assign(raw_bytes.begin() + 16, raw_bytes.end());
     }
     else{
         if (iv.size() != 16){
-            throw invalid_argument("IV must be exactly 16 bytes");
+            throw std::invalid_argument("IV must be exactly 16 bytes");
         }
         iv_bytes.assign(iv.begin(), iv.end());
         ct_bytes.assign(raw_bytes.begin(), raw_bytes.end());
     }
     AES aes(key);
-    vector<uc> pt_bytes = aes.decrypt_cbc(ct_bytes, iv_bytes);
+    std::vector<uc> pt_bytes = aes.decrypt_cbc(ct_bytes, iv_bytes);
 
-    return string(pt_bytes.begin(), pt_bytes.end());
+    return std::string(pt_bytes.begin(), pt_bytes.end());
 }
