@@ -108,7 +108,7 @@ Bytes encode_message(MessageType type, const Bytes& body) {
 }
 
 MessageType decode_message(const Bytes& payload, Bytes& body) {
-    if (payload.size() < 4 || payload.size() > MaxPayloadSize) {
+    if (payload.size() < 2 || payload.size() > MaxPayloadSize) {
         throw std::invalid_argument("Invalid protocol payload size");
     }
     Reader reader(payload);
@@ -128,11 +128,7 @@ MessageType decode_message(const Bytes& payload, Bytes& body) {
     default:
         throw std::invalid_argument("Unsupported protocol message type");
     }
-    
-    uint16_t body_len = reader.uint16();
-    
-    body = reader.fixed(body_len);
-    
+    body = reader.fixed(payload.size() - 2);
     reader.require_done();
     return type;
 }
