@@ -1,7 +1,8 @@
 #include "bob/bob.hpp"
 
-#include "crypto/aes.hpp"
+#include "common/input_reader.hpp"
 #include "common/secure_random.hpp"
+#include "crypto/aes.hpp"
 #include "network/tcp_connection.hpp"
 #include "protocol/messages.hpp"
 
@@ -106,7 +107,7 @@ Bob::Bob(std::string identity, std::string long_term_key)
 
 void Bob::run(const std::string& bind_host, const std::string& port) const {
     auto listener = network::create_tcp_listener(bind_host, port);
-    std::cout << "Bob " << identity_ << " listening on " << bind_host << ':' << port << '\n';
+    std::cout << "[System] Listening for incoming connections on " << bind_host << ':' << port << "..." << std::endl;
     for (;;) {
         auto connection = network::accept_tcp(listener);
         try {
@@ -134,6 +135,8 @@ void Bob::handle_connection(network::TcpConnection& connection) const {
     }
     const std::string session_key(session_key_bytes.begin(), session_key_bytes.end());
 
+    std::cout << "[System] Connection received from " << alice_id << ". Verifying ticket..." << std::endl;
+
     const auto nonce = secure_random_bytes(16);
     const auto challenge = encrypt_object(session_key, nonce);
     connection.send_frame(wrap(protocol::MessageType::Challenge,
@@ -149,8 +152,9 @@ void Bob::handle_connection(network::TcpConnection& connection) const {
         throw std::runtime_error("Authentication failed");
     }
 
-    std::cout << "Authenticated Alice " << alice_id
-              << "; chat is confidentiality-only (no message authentication)\n";
+    std::cout << "[System] Mutual authentication successful!\n"
+              << "[System] Secure chat established (AES-128-CBC). Type /quit to leave, /help for options" << std::endl;
+
     std::atomic_bool receive_finished{false};
     std::thread receiver([&] {
         std::uint64_t expected_sequence = 0;
@@ -169,33 +173,56 @@ void Bob::handle_connection(network::TcpConnection& connection) const {
                 if (!is_ascii(plaintext)) {
                     throw std::runtime_error("Received chat message is not ASCII");
                 }
-                std::cout << alice_id << ": "
-                          << std::string(plaintext.begin(), plaintext.end()) << '\n';
+                std::cout << "\r[" << alice_id << "]: "
+                          << std::string(plaintext.begin(), plaintext.end()) << '\n'
+                          << "[" << identity_ << "] > " << std::flush;
                 ++expected_sequence;
+            }
+        } catch (const network::ConnectionClosedException&) {
+            if (!receive_finished.load()) {
+                std::cout << "\r[System] " << alice_id << " has left the chat.\n"
+                          << "[System] Session closed. Waiting for new connections..." << std::endl;
             }
         } catch (const std::exception& error) {
             if (!receive_finished.load()) {
-                std::cerr << "Chat receive failed: " << error.what() << '\n';
+                std::cerr << "\nChat receive failed: " << error.what() << std::endl;
             }
         }
         receive_finished = true;
     });
 
-    std::string line;
+    common::InputReader input_reader;
+    input_reader.clear();
     std::uint64_t outgoing_sequence = 0;
     std::exception_ptr send_failure;
+    std::cout << "[" << identity_ << "] > " << std::flush;
     try {
-        while (!receive_finished.load() && std::getline(std::cin, line)) {
-            if (line == "/quit") {
+        while (!receive_finished.load()) {
+            std::string line;
+            if (!input_reader.read_line(line, receive_finished)) {
                 break;
+            }
+            if (line == "/quit") {
+                std::cout << "[System] You have disconnected from the chat.\n"
+                          << "[System] Session closed. Waiting for new connections...\n";
+                break;
+            }
+            if (line == "/help") {
+                std::cout << "[System] Available commands:\n"
+                          << "  /help - Show this help message\n"
+                          << "  /quit - Disconnect and leave the chat\n"
+                          << "[" << identity_ << "] > " << std::flush;
+                continue;
             }
             const protocol::Bytes plaintext(line.begin(), line.end());
             if (!is_ascii(plaintext)) {
-                std::cerr << "Only ASCII chat messages are supported\n";
+                std::cerr << "Only ASCII chat messages are supported\n"
+                          << "[" << identity_ << "] > " << std::flush;
                 continue;
             }
             const auto encrypted = encrypt_object(session_key, plaintext);
             connection.send_frame(encode_chat(identity_, outgoing_sequence++, encrypted));
+            std::cout << "[" << identity_ << "] > " << std::flush;
         }
     } catch (...) {
         send_failure = std::current_exception();

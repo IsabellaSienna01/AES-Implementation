@@ -76,6 +76,18 @@ void transfer_all(sm_socket_t socket, const unsigned char* data, std::size_t siz
             : receive_bytes(socket, const_cast<unsigned char*>(data + transferred),
                             size - transferred);
         if (result <= 0) {
+            if (!sending && transferred == 0) {
+                const int err = last_socket_error();
+#ifdef _WIN32
+                if (result == 0 || err == WSAECONNRESET || err == WSAECONNABORTED) {
+                    throw ConnectionClosedException();
+                }
+#else
+                if (result == 0 || err == ECONNRESET) {
+                    throw ConnectionClosedException();
+                }
+#endif
+            }
             throw std::runtime_error("TCP connection closed or operation failed (" +
                                      std::to_string(last_socket_error()) + ")");
         }
@@ -208,6 +220,31 @@ protocol::Bytes TcpConnection::receive_frame() const {
     protocol::Bytes payload(length);
     transfer_all(socket_, payload.data(), payload.size(), false);
     return payload;
+}
+
+std::string TcpConnection::peer_address() const {
+    if (!valid()) {
+        return "unknown";
+    }
+    sockaddr_storage addr{};
+    socket_length_t len = sizeof(addr);
+    if (::getpeername(socket_, reinterpret_cast<sockaddr*>(&addr), &len) != 0) {
+        return "unknown";
+    }
+    char ip[INET6_ADDRSTRLEN]{};
+    int port = 0;
+    if (addr.ss_family == AF_INET) {
+        const auto* s = reinterpret_cast<const sockaddr_in*>(&addr);
+        inet_ntop(AF_INET, const_cast<in_addr*>(&s->sin_addr), ip, sizeof(ip));
+        port = ntohs(s->sin_port);
+    } else if (addr.ss_family == AF_INET6) {
+        const auto* s = reinterpret_cast<const sockaddr_in6*>(&addr);
+        inet_ntop(AF_INET6, const_cast<in6_addr*>(&s->sin6_addr), ip, sizeof(ip));
+        port = ntohs(s->sin6_port);
+    } else {
+        return "unknown";
+    }
+    return std::string(ip) + ":" + std::to_string(port);
 }
 
 TcpConnection connect_tcp(const std::string& host, const std::string& port) {

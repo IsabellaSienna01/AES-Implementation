@@ -2,6 +2,7 @@
 
 #include "protocol/messages.hpp"
 
+#include <stdexcept>
 #include <string>
 
 #ifdef _WIN32
@@ -13,6 +14,11 @@ using sm_socket_t = int;
 #endif
 
 namespace sm::network {
+
+class ConnectionClosedException : public std::runtime_error {
+public:
+    ConnectionClosedException() : std::runtime_error("Connection closed by peer") {}
+};
 
 class TcpConnection {
 public:
@@ -28,6 +34,7 @@ public:
     void send_frame(const protocol::Bytes& payload) const;
     protocol::Bytes receive_frame() const;
     void shutdown() const noexcept;
+    std::string peer_address() const;
 
 private:
     sm_socket_t socket_;
@@ -40,3 +47,4 @@ TcpConnection create_tcp_listener(const std::string& host, const std::string& po
 TcpConnection accept_tcp(const TcpConnection& listener);
 
 }
+

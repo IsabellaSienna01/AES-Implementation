@@ -50,20 +50,26 @@ int main(int argc, char** argv) {
         }
         sm::kdc::Kdc kdc(parse_keys(argc, argv));
         auto listener = sm::network::create_tcp_listener(bind_host, port);
-        std::cout << "KDC listening on " << bind_host << ':' << port << '\n';
+        std::cout << "[KDC] [LISTEN] Server ready on " << bind_host << ':' << port << '\n'
+                  << "--------------------------------------------------------------------------------" << std::endl;
         for (;;) {
             auto connection = sm::network::accept_tcp(listener);
             try {
+                std::cout << "[KDC] [REQUEST] Incoming connection from " << connection.peer_address() << std::endl;
                 const auto request = connection.receive_frame();
-                connection.send_frame(kdc.process_request(request));
-            } catch (const std::exception&) {
+                const auto response = kdc.process_request(request);
+                connection.send_frame(response);
+                std::cout << "[KDC] [RESPONSE] Dispatched KdcResponse (" << response.size() << " bytes) to Alice.\n"
+                          << "--------------------------------------------------------------------------------" << std::endl;
+            } catch (const std::exception& error) {
                 try {
                     connection.send_frame(error_payload(0x0001, "Invalid KDC request"));
                 } catch (const std::exception& send_error) {
                     std::cerr << "Could not send KDC error response: "
-                              << send_error.what() << '\n';
+                              << send_error.what() << std::endl;
                 }
-                std::cerr << "Rejected a KDC connection\n";
+                std::cerr << "[KDC] [REJECT] Rejected connection: " << error.what() << '\n'
+                          << "--------------------------------------------------------------------------------" << std::endl;
             }
         }
     } catch (const std::exception& error) {
