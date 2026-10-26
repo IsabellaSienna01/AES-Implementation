@@ -120,6 +120,22 @@ void test_invalid_message_and_response() {
     }
     assert(rejected_bad_version);
 
+    bool rejected_empty = false;
+    try {
+        (void)decode_key_request(Bytes{});
+    } catch (const std::invalid_argument&) {
+        rejected_empty = true;
+    }
+    assert(rejected_empty);
+
+    bool rejected_truncated_payload = false;
+    try {
+        (void)decode_key_request(Bytes{0x01, 0x02});
+    } catch (const std::invalid_argument&) {
+        rejected_truncated_payload = true;
+    }
+    assert(rejected_truncated_payload);
+
     bool rejected_bad_encrypted_object = false;
     try {
         (void)decode_key_response(Bytes{0, 1, 1, 0, 1, 2});
