@@ -9,8 +9,10 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#include <arpa/inet.h>
 #include <cerrno>
 #include <netdb.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #endif
